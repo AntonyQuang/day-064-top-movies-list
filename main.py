@@ -10,6 +10,7 @@ from pprint import pprint
 API_KEY = "d6a05580be3a2dcccae6edbb4dc9ab89"
 tmdb_endpoint = "https://api.themoviedb.org/3/search/movie"
 
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = '8BYkEfBA6O6donzWlSihBXox7C0sKR6b'
 Bootstrap(app)
@@ -49,10 +50,12 @@ db.create_all()
 # db.session.add(new_movie)
 # db.session.commit()
 
+
 class EditForm(FlaskForm):
     rating = FloatField('Your rating out of 10 (e.g, 6, 7.5)', validators=[DataRequired()])
     review = StringField('Your Review', validators=[DataRequired()])
     submit = SubmitField('Submit')
+
 
 class AddForm(FlaskForm):
     title = StringField('Movie Title', validators=[DataRequired()])
@@ -65,22 +68,18 @@ def home():
     return render_template("index.html", movies=all_movies)
 
 
-
-@app.route("/edit", methods=["GET","POST"])
+@app.route("/edit", methods=["GET", "POST"])
 def edit():
+    movie_id = request.args.get('id')
+    movie_selected = Movie.query.get(movie_id)
+    form = EditForm()
     if request.method == "POST":
-        print(request.form["rating"])
-        print(request.form["review"])
-        print(request.args.get('id'))
         movie_id = request.args.get("id")
         movie_to_update = Movie.query.get(movie_id)
         movie_to_update.rating = request.form["rating"]
         movie_to_update.review = request.form["review"]
         db.session.commit()
         return redirect(url_for('home'))
-    movie_id = request.args.get('id')
-    movie_selected = Movie.query.get(movie_id)
-    form = EditForm()
     return render_template("edit.html", movie=movie_selected, form=form)
 
 
@@ -104,8 +103,6 @@ def add():
         response = requests.get(url=tmdb_endpoint, params=params)
         data = response.json()
         movie_results = data["results"]
-
-
         return render_template("select.html", movies=movie_results)
 
     return render_template("add.html", form=form)
@@ -114,6 +111,34 @@ def add():
 @app.route("/select", methods=["GET", "POST"])
 def select():
     return render_template("select.html")
+
+
+@app.route("/find", methods=["GET", "POST"])
+def find():
+    movie_id = request.args.get('id')
+    print(movie_id)
+    tmdb_id_endpoint = f"https://api.themoviedb.org/3/movie/{movie_id}"
+    params = {"api_key": API_KEY,
+              }
+    response = requests.get(url=tmdb_id_endpoint, params=params)
+    data = response.json()
+    pprint(data)
+    title = data["title"]
+    img_url = f"https://image.tmdb.org/t/p/w500{data['poster_path']}"
+    year = data["release_date"].split("-")[0]
+    description = data["overview"]
+    new_movie = Movie(
+        title=title,
+        year=year,
+        description=description,
+        rating=0,
+        ranking=0,
+        review="review pending",
+        img_url=img_url,
+    )
+    db.session.add(new_movie)
+    db.session.commit()
+    return redirect(url_for('edit', id=new_movie.id))
 
 
 
