@@ -23,12 +23,12 @@ db = SQLAlchemy(app)
 class Movie(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(250), unique=True, nullable=False)
-    year = db.Column(db.Integer, unique=False, nullable=False)
-    description = db.Column(db.String(250), unique=False, nullable=False)
-    rating = db.Column(db.Float(120), unique=False, nullable=False)
-    ranking = db.Column(db.Integer, unique=False, nullable=False)
-    review = db.Column(db.String(250), unique=False, nullable=False)
-    img_url = db.Column(db.String, unique=False, nullable=False)
+    year = db.Column(db.Integer, nullable=False)
+    description = db.Column(db.String(250), nullable=False)
+    rating = db.Column(db.Float(120), nullable=True)
+    ranking = db.Column(db.Integer, nullable=True)
+    review = db.Column(db.String(250), nullable=True)
+    img_url = db.Column(db.String(250), nullable=False)
 
 
     # Optional: this will allow each book object to be identified by its title when printed.
@@ -59,13 +59,17 @@ class EditForm(FlaskForm):
 
 class AddForm(FlaskForm):
     title = StringField('Movie Title', validators=[DataRequired()])
-    submit = SubmitField('Submit')
+    submit = SubmitField('Add Movie')
 
 
 @app.route("/")
 def home():
     all_movies = db.session.query(Movie).all()
-    return render_template("index.html", movies=all_movies)
+    all_movies_ranked = Movie.query.order_by(Movie.rating).all()
+    for i in range(len(all_movies_ranked)):
+        all_movies_ranked[i].ranking = len(all_movies_ranked) - i
+    db.session.commit()
+    return render_template("index.html", movies=all_movies_ranked)
 
 
 @app.route("/edit", methods=["GET", "POST"])
@@ -116,7 +120,6 @@ def select():
 @app.route("/find", methods=["GET", "POST"])
 def find():
     movie_id = request.args.get('id')
-    print(movie_id)
     tmdb_id_endpoint = f"https://api.themoviedb.org/3/movie/{movie_id}"
     params = {"api_key": API_KEY,
               }
@@ -131,9 +134,9 @@ def find():
         title=title,
         year=year,
         description=description,
-        rating=0,
-        ranking=0,
-        review="review pending",
+        # rating=0,
+        # ranking=0,
+        # review="review pending",
         img_url=img_url,
     )
     db.session.add(new_movie)
